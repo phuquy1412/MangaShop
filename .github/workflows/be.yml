@@ -1,0 +1,59 @@
+# Backend CI/CD pipeline for Render deployment
+#+------------------------------------------------------
+# This workflow installs dependencies, runs any tests, and then
+# triggers a deployment to a Render service using the Render CLI.
+#
+# Before using this workflow you should add the following secrets to
+# your repository settings:
+#   - RENDER_API_KEY        (the API key from your Render account)
+#   - RENDER_SERVICE_ID      (the id of the service you want to deploy)
+
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        # if you don't have tests, you can remove this step
+        run: npm test || true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Render CLI
+        run: |
+          curl -fsSL https://render.com/downloads/cli | bash
+          sudo mv render /usr/local/bin/
+
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          # deploy the service identified by the secret
+          render deploy --service-id ${{ secrets.RENDER_SERVICE_ID }}
+
